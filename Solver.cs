@@ -102,11 +102,11 @@ namespace Solver
                     tradesToday.Clear();
 
                     if (numberOfTrades > MaximumAllowedTrades)
-					{
-						score = 0;
-						errorMessage = $"Line {currentLine}: You are not allowed more than {MaximumAllowedTrades} per day";
-						return false;
-					}
+                    {
+                        score = 0;
+                        errorMessage = $"Line {currentLine}: You are not allowed more than {MaximumAllowedTrades} per day";
+                        return false;
+                    }
 
                     for (var j = 0; j < numberOfTrades; j++)
                     {
