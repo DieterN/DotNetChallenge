@@ -16,8 +16,7 @@ namespace Solver
         public decimal CurrentCapital { get; set; }
         public Dictionary<string, int> SecurityInStock { get; set; } = new Dictionary<string, int>();
         public Dictionary<string, int> SecurityInPortfolio { get; set; } = new Dictionary<string, int>();
-        public bool ProfessionalMode { get; } = false;
-        public int ProfessionalMaximumAllowedTrades { get; } = 20;
+        public int MaximumAllowedTrades { get; } = 10;
 
         static void Main(string[] args)
         {
@@ -102,15 +101,12 @@ namespace Solver
                     // new day, new trades
                     tradesToday.Clear();
 
-                    if (ProfessionalMode)
-                    {
-                        if (numberOfTrades > ProfessionalMaximumAllowedTrades)
-                        {
-                            score = 0;
-                            errorMessage = $"Line {currentLine}: Professionals are not allowed more than {ProfessionalMaximumAllowedTrades} per day";
-                            return false;
-                        }
-                    }
+                    if (numberOfTrades > MaximumAllowedTrades)
+					{
+						score = 0;
+						errorMessage = $"Line {currentLine}: You are not allowed more than {MaximumAllowedTrades} per day";
+						return false;
+					}
 
                     for (var j = 0; j < numberOfTrades; j++)
                     {
