@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -15,13 +16,19 @@ namespace Solver
         public decimal CurrentCapital { get; set; }
         public Dictionary<string, int> SecurityInStock { get; set; } = new Dictionary<string, int>();
         public Dictionary<string, int> SecurityInPortfolio { get; set; } = new Dictionary<string, int>();
+        public bool ProfessionalMode { get; } = false;
+        public int ProfessionalMaximumAllowedTrades { get; } = 20;
 
-        static void Main()
+        static void Main(string[] args)
         {
+            var inputFile = args[0];
+            var outputFile = args[1];
+            Console.WriteLine($"Taking input file from path {inputFile}");
+            Console.WriteLine($"Taking output file from path {outputFile}");
             var solver = new Solver();
-            solver.ParseInputFile("data.in");
+            solver.ParseInputFile(inputFile);
             solver.InitializeSolverData();
-            if (!solver.HandleOutputFile("data.out", out var score, out var errorMessage))
+            if (!solver.HandleOutputFile(outputFile, out var score, out var errorMessage))
             {
                 Console.WriteLine(errorMessage);
                 return;
@@ -32,11 +39,11 @@ namespace Solver
 
         public void ParseInputFile(string inputFile)
         {
-            var streamReader = new StreamReader(inputFile);
+            using var streamReader = new StreamReader(inputFile);
             var firstLine = streamReader.ReadLine().Trim().Split();
             NumberOfSecurities = Int32.Parse(firstLine[0]);
             NumberOfDays = Int32.Parse(firstLine[1]);
-            StartCapital = Convert.ToDecimal(firstLine[2]);
+            StartCapital = Convert.ToDecimal(firstLine[2], CultureInfo.GetCultureInfo("en-US"));
 
             for (var i = 0; i < NumberOfSecurities; i++)
             {
@@ -44,7 +51,7 @@ namespace Solver
                 var splitLine = streamReader.ReadLine().Trim().Split();
                 security.Name = splitLine[0];
                 security.StockAvailable = Convert.ToInt32(splitLine[1]);
-                security.StockPrices = streamReader.ReadLine().Trim().Split().Select(s => Convert.ToDecimal(s)).ToArray();
+                security.StockPrices = streamReader.ReadLine().Trim().Split().Select(s => Convert.ToDecimal(s, CultureInfo.GetCultureInfo("en-US"))).ToArray();
                 SecurityMap[security.Name] = security;
             }
 
@@ -70,6 +77,7 @@ namespace Solver
                 var daySections = Convert.ToInt32(streamReader.ReadLine().Trim());
                 currentLine++;
                 var previousDay = 0;
+                var tradesToday = new List<string>();
                 for (var i = 0; i < daySections; i++)
                 {
                     var metadataLine = streamReader.ReadLine().Trim().Split().Select(s => Convert.ToInt32(s)).ToArray();
@@ -91,6 +99,19 @@ namespace Solver
 
                     previousDay = currentDay;
                     var numberOfTrades = metadataLine[1];
+                    // new day, new trades
+                    tradesToday.Clear();
+
+                    if (ProfessionalMode)
+                    {
+                        if (numberOfTrades > ProfessionalMaximumAllowedTrades)
+                        {
+                            score = 0;
+                            errorMessage = $"Line {currentLine}: Professionals are not allowed more than {ProfessionalMaximumAllowedTrades} per day";
+                            return false;
+                        }
+                    }
+
                     for (var j = 0; j < numberOfTrades; j++)
                     {
                         var tradeLine = streamReader.ReadLine().Trim().Split();
@@ -104,9 +125,19 @@ namespace Solver
                             errorMessage = $"Line {currentLine}: {errorMessage}";
                             return false;
                         }
+
+                        if (tradesToday.Contains(securityName))
+                        {
+                            score = 0;
+                            errorMessage = $"Line {currentLine}: Can't execute the same security more than once per day";
+                            return false;
+                        }
+
+                        tradesToday.Add(securityName);
                     }
                 }
-            } catch (FormatException e)
+            }
+            catch (FormatException e)
             {
                 score = 0;
                 errorMessage = $"Line {currentLine + 1}: Output data was invalid ({e.Message})";
@@ -114,7 +145,9 @@ namespace Solver
             }
 
             errorMessage = string.Empty;
-            score = CurrentCapital;
+            // Also add current portfolio
+            var portfolioScore = SecurityInPortfolio.Select(kvp => SecurityMap[kvp.Key].StockPrices.Last() * kvp.Value).Sum();
+            score = CurrentCapital + portfolioScore;
             return true;
         }
 
